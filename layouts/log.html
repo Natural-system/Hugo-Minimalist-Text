@@ -256,18 +256,19 @@
   <!-- 移动端侧栏切换按钮 -->
   <button class="timeline-toggle-btn" id="sidebar-toggle-btn">📅 时间线</button>
 
-  <div class="log-container">
-    <header class="article-header">
-      <h1 class="article-title">{{ .Title }}</h1>
-      <div class="meta-info">
-        记录日常随感与碎片思考 · Fun asr nano大模型语音转文字 · 不检查，零碎，错字勿怪 · 倒序排列
-      </div>
-      <div class="log-stats">
-        <span>全页共 <strong id="log-word-count">-</strong> 字</span>
-        <span>·</span>
-        <span>预计阅读时间 <strong id="log-read-time">-</strong> 分钟</span>
-      </div>
-    </header>
+<div class="log-container">
+  <header class="article-header">
+    <h1 class="article-title">{{ .Title }}</h1>
+    
+    <div class="log-stats">
+      <span>记录日常随感与碎片思考 · Fun asr nano大模型语音转文字 · 不检查，零碎，错字勿怪 · 倒序排列</span>
+    </div>
+
+    <div class="log-stats">
+      <span>全页共 <strong id="log-word-count">-</strong> 字</span>
+      <span>·</span>
+      <span>预计阅读时间 <strong id="log-read-time">-</strong> 分钟</span>
+    </div>    </header>
 
     <!-- 渲染后的日志容器 -->
     <div id="rendered-log-wrapper"></div>
