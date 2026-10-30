@@ -100,7 +100,7 @@ Plaintext
 Bash
 
 
-git clone https://github.com/Natural-system/self-transcendence.git
+git clone https://github.com/Natural-system/Hugo-Minimalist-Text
 cd self-transcendence
 hugo server
 # 打开浏览器访问 http://localhost:1313
