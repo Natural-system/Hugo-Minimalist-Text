@@ -1,13 +1,36 @@
-baseURL: "https://natural-system.github.io/self-transcendence/"
-languageCode: "zh-CN"
-title: "自我超越"
-theme: "your-theme-name"
+name: Deploy Hugo site to Pages
 
-# 必须声明分类法 mapping，确保分类页面路由生效
-taxonomies:
-  category: categories
-  tag: tags
+on:
+  push:
+    branches:
+      - main  # 如果你的默认分支是 master，请改成 master
 
-# 设置规范的文章 URL 路径结构
-permalinks:
-  posts: "/posts/:year/:month/:title/"
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    concurrency:
+      group: "pages-build-${{ github.ref }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: 'latest'
+          extended: true
+
+      - name: Build
+        run: hugo --minify
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
