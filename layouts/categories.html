@@ -1,0 +1,46 @@
+{{ define "main" }}
+<style>
+  .all-categories-container h2 { font-size: 1.6rem; margin-bottom: 25px; }
+  .cat-group { margin-bottom: 35px; }
+  .cat-group h3 { font-size: 1.2rem; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 6px; }
+  .cat-group h3 a:hover { color: var(--accent-color); text-decoration: underline; }
+</style>
+
+<div class="all-categories-container">
+  <h2>全部分类归档</h2>
+  
+  {{ range $name, $taxonomy := .Site.Taxonomies.categories }}
+    {{/* 动态获取该分类的绝对/相对路径，确保万无一失 */}}
+    {{ $termPage := $.Site.GetPage (print "/categories/" $name) }}
+    <div class="cat-group">
+      <h3>
+        {{ if $termPage }}
+          <a href="{{ $termPage.RelPermalink }}">{{ $name }} ({{ len $taxonomy.Pages }} 篇)</a>
+        {{ else }}
+          <a href="{{ (print "categories/" $name "/") | relLangURL }}">{{ $name }} ({{ len $taxonomy.Pages }} 篇)</a>
+        {{ end }}
+      </h3>
+      <ul class="post-list">
+        {{ range $index, $page := first 5 $taxonomy.Pages }}
+          <li class="post-item">
+            <div class="post-left">
+              <span class="post-index">{{ if lt $index 9 }}0{{ end }}{{ add $index 1 }}</span>
+              <a class="post-title" href="{{ .RelPermalink }}">{{ .Title }}</a>
+            </div>
+            <span class="post-date">{{ .Date.Format "2006-01-02" }}</span>
+          </li>
+        {{ end }}
+      </ul>
+      {{ if gt (len $taxonomy.Pages) 5 }}
+        <div style="margin-top: 8px; font-size: 0.85rem; color: var(--muted-color);">
+          {{ if $termPage }}
+            <a href="{{ $termPage.RelPermalink }}">查看全部 &rarr;</a>
+          {{ else }}
+            <a href="{{ (print "categories/" $name "/") | relLangURL }}">查看全部 &rarr;</a>
+          {{ end }}
+        </div>
+      {{ end }}
+    </div>
+  {{ end }}
+</div>
+{{ end }}

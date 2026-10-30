@@ -1,0 +1,167 @@
+---
+title: "首页"
+layout: "index"
+---
+
+<h2>文章列表</h2>
+
+<div class="home-posts">
+  <ul class="post-list" id="home-post-list">
+    <!-- JS 将在此处渲染当前页面的文章 -->
+  </ul>
+</div>
+
+<!-- 分页导航 -->
+<div class="pagination" id="home-pagination" style="display: none;"></div>
+
+<script>
+  // 构建首页所有文章数据（按默认发布倒序获取）
+  var rawPosts = [
+    {% for post in site.posts %}
+      {
+        "title": {{ post.title | jsonify }},
+        "url": {{ post.url | relative_url | jsonify }},
+        "date": "{{ post.date | date: '%Y-%m-%d' }}"
+      }{% unless forloop.last %},{% endunless %}
+    {% endfor %}
+  ];
+
+  var pageSize = 20; // 首页每页展示 20 篇
+  var currentPage = 1;
+
+  function getPageFromUrl() {
+    var params = new URLSearchParams(window.location.search);
+    var p = parseInt(params.get('page'), 10);
+    return (!isNaN(p) && p > 0) ? p : 1;
+  }
+
+  function renderHomePage() {
+    currentPage = getPageFromUrl();
+    var totalPosts = rawPosts.length;
+    var totalPages = Math.ceil(totalPosts / pageSize) || 1;
+
+    if (currentPage > totalPages) currentPage = totalPages;
+
+    var listContainer = document.getElementById('home-post-list');
+    var paginationContainer = document.getElementById('home-pagination');
+
+    // 截取当前页 20 篇文章
+    var startIndex = (currentPage - 1) * pageSize;
+    var endIndex = Math.min(startIndex + pageSize, totalPosts);
+    var pagePosts = rawPosts.slice(startIndex, endIndex);
+
+    var listHtml = '';
+    pagePosts.forEach(function(post, idx) {
+      // 计算正向编号（排最顶部为 01，第二篇 02，换页顺延）
+      var globalSeq = startIndex + idx + 1;
+      var seqStr = (globalSeq < 10 ? '0' : '') + globalSeq;
+
+      listHtml += '<li class="post-item">' +
+                    '<div class="post-left">' +
+                      '<span class="post-index">' + seqStr + '</span>' +
+                      '<a class="post-title" href="' + post.url + '">' + post.title + '</a>' +
+                    '</div>' +
+                    '<span class="post-date">' + post.date + '</span>' +
+                  '</li>';
+    });
+    listContainer.innerHTML = listHtml;
+
+    // 分页组件（超过 20 篇自动渲染）
+    if (totalPages <= 1) {
+      paginationContainer.style.display = 'none';
+      return;
+    }
+    paginationContainer.style.display = 'flex';
+
+    var pagHtml = '';
+
+    // 1. 首页与上一页
+    if (currentPage > 1) {
+      pagHtml += '<a href="javascript:void(0)" onclick="goToHomePaging(1)">首页</a>';
+      pagHtml += '<a href="javascript:void(0)" onclick="goToHomePaging(' + (currentPage - 1) + ')">上一页</a>';
+    } else {
+      pagHtml += '<span class="disabled">首页</span>';
+      pagHtml += '<span class="disabled">上一页</span>';
+    }
+
+    // 2. 滑动窗口核心逻辑：控制连续显示的页码始终保持在 10 个左右
+    var startPage, endPage;
+    var maxVisiblePages = 10;
+
+    if (totalPages <= maxVisiblePages) {
+      startPage = 1;
+      endPage = totalPages;
+    } else {
+      if (currentPage <= 6) {
+        startPage = 1;
+        endPage = 10;
+      } else if (currentPage + 4 >= totalPages) {
+        startPage = totalPages - 9;
+        endPage = totalPages;
+      } else {
+        startPage = currentPage - 4;
+        endPage = currentPage + 5;
+      }
+    }
+
+    // 3. 前置省略号处理
+    if (startPage > 1) {
+      pagHtml += '<a href="javascript:void(0)" onclick="goToHomePaging(1)">1</a>';
+      if (startPage > 2) {
+        pagHtml += '<span class="ellipsis">...</span>';
+      }
+    }
+
+    // 4. 渲染 10 个左右的动态页码
+    for (var i = startPage; i <= endPage; i++) {
+      if (i === currentPage) {
+        pagHtml += '<span class="active">' + i + '</span>';
+      } else {
+        pagHtml += '<a href="javascript:void(0)" onclick="goToHomePaging(' + i + ')">' + i + '</a>';
+      }
+    }
+
+    // 5. 后置省略号与最后一页处理
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        pagHtml += '<span class="ellipsis">...</span>';
+      }
+      pagHtml += '<a href="javascript:void(0)" onclick="goToHomePaging(' + totalPages + ')">' + totalPages + '</a>';
+    }
+
+    // 6. 下一页与末页
+    if (currentPage < totalPages) {
+      pagHtml += '<a href="javascript:void(0)" onclick="goToHomePaging(' + (currentPage + 1) + ')">下一页</a>';
+      pagHtml += '<a href="javascript:void(0)" onclick="goToHomePaging(' + totalPages + ')">末页</a>';
+    } else {
+      pagHtml += '<span class="disabled">下一页</span>';
+      pagHtml += '<span class="disabled">末页</span>';
+    }
+
+    // 7. 跳转输入框
+    pagHtml += '<div class="pagination-jump" style="display:inline-flex; align-items:center; margin-left:6px;">' +
+                 '<input type="number" id="home-jump-input" min="1" max="' + totalPages + '" placeholder="' + currentPage + '">' +
+                 '<button type="button" onclick="handleHomeJump(' + totalPages + ')">跳转</button>' +
+               '</div>';
+
+    paginationContainer.innerHTML = pagHtml;
+  }
+
+  function goToHomePaging(page) {
+    var newUrl = window.location.pathname + '?page=' + page;
+    history.pushState(null, '', newUrl);
+    renderHomePage();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function handleHomeJump(totalPages) {
+    var input = document.getElementById('home-jump-input');
+    var val = parseInt(input.value, 10);
+    if (isNaN(val) || val < 1) val = 1;
+    if (val > totalPages) val = totalPages;
+    goToHomePaging(val);
+  }
+
+  window.addEventListener('popstate', renderHomePage);
+  window.addEventListener('DOMContentLoaded', renderHomePage);
+</script>

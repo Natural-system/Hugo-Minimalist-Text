@@ -1,0 +1,119 @@
+{{ define "main" }}
+<div class="archive-container">
+  <h2>年份归档</h2>
+
+  {{/* Hugo 按年份降序对全站文章进行分组 */}}
+  {{ $pagesByYear := .Site.RegularPages.GroupByDate "2006" }}
+  <div class="archive-year-wrapper">
+    {{ range $pagesByYear }}
+      {{ $totalCount := len .Pages }}
+      {{ $remainingCount := sub $totalCount 10 }}
+      {{ $yearStr := .Key }}
+
+      <div class="year-block" style="margin-bottom: 40px;">
+        <h3 id="year-{{ $yearStr }}" style="font-size: 1.3rem; font-weight: 600; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 6px; font-family: var(--font-mono);">
+          {{ $yearStr }} 年 ({{ $totalCount }} 篇)
+        </h3>
+        
+        {{ if gt $totalCount 10 }}
+          <!-- 纯 CSS 控制开关（隐藏） -->
+          <input type="checkbox" id="toggle-year-{{ $yearStr }}" class="year-toggle-checkbox">
+        {{ end }}
+
+        <ul class="post-list">
+          {{ range $index, $post := .Pages }}
+            {{ $displayIndex := add $index 1 }}
+            <li class="post-item {{ if gt $displayIndex 10 }}more-post{{ end }}">
+              <div class="post-left">
+                <span class="post-index">{{ if lt $displayIndex 10 }}0{{ end }}{{ $displayIndex }}</span>
+                <a class="post-title" href="{{ $post.RelPermalink }}">{{ $post.Title }}</a>
+              </div>
+              <span class="post-date">{{ $post.Date.Format "01-02" }}</span>
+            </li>
+          {{ end }}
+        </ul>
+
+        {{ if gt $totalCount 10 }}
+          <!-- 1. 展开按钮 -->
+          <label for="toggle-year-{{ $yearStr }}" class="btn-toggle-year btn-expand">
+            剩余 {{ $remainingCount }} 篇文章，点击展开 <span class="arrow-icon">▼</span>
+          </label>
+          <!-- 2. 收起按钮 -->
+          <label for="toggle-year-{{ $yearStr }}" class="btn-toggle-year btn-collapse">
+            收起该年份文章 <span class="arrow-icon">▲</span>
+          </label>
+        {{ end }}
+      </div>
+    {{ end }}
+  </div>
+</div>
+
+<!-- CSS 样式 -->
+<style>
+  /* 1. 彻底隐藏复选框 */
+  .year-toggle-checkbox {
+    display: none !important;
+  }
+
+  /* 2. 默认收起状态：隐藏第 10 篇之后的文章 */
+  .year-block .more-post {
+    display: none;
+  }
+
+  /* 3. 默认收起状态：第 9 和第 10 篇文章呈现逐渐变淡效果 */
+  .year-toggle-checkbox:not(:checked) ~ .post-list .post-item:nth-child(9) {
+    opacity: 0.6;
+    transition: opacity 0.3s ease;
+  }
+  .year-toggle-checkbox:not(:checked) ~ .post-list .post-item:nth-child(10) {
+    opacity: 0.25;
+    transition: opacity 0.3s ease;
+  }
+
+  /* 4. 当点击展开时：恢复所有文章 100% 正常不透明度 */
+  .year-toggle-checkbox:checked ~ .post-list .post-item {
+    opacity: 1;
+  }
+  .year-toggle-checkbox:checked ~ .post-list .more-post {
+    display: flex;
+  }
+
+  /* 5. 醒目的“展开/收起”按钮样式 */
+  .btn-toggle-year {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 14px;
+    padding: 6px 14px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-color);
+    background-color: rgba(0, 0, 0, 0.035);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+  }
+
+  html[data-theme="dark"] .btn-toggle-year {
+    background-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .btn-toggle-year:hover {
+    color: var(--accent-color);
+    border-color: var(--accent-color);
+    background-color: rgba(0, 0, 0, 0.06);
+  }
+
+  .btn-collapse {
+    display: none;
+  }
+  .year-toggle-checkbox:checked ~ .btn-expand {
+    display: none;
+  }
+  .year-toggle-checkbox:checked ~ .btn-collapse {
+    display: inline-flex;
+  }
+</style>
+{{ end }}

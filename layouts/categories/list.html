@@ -1,0 +1,164 @@
+{{ define "main" }}
+<style>
+  .category-posts .post-item { padding: 8px 0; border-bottom: 1px dashed var(--border-color); }
+  .category-posts .post-index { font-family: var(--font-mono); color: var(--muted-color); font-size: 0.85rem; min-width: 32px; }
+  .category-header { margin-bottom: 30px; }
+  .category-header h2 { font-size: 1.6rem; margin: 0 0 8px 0; }
+  .category-meta { font-size: 0.9rem; color: var(--muted-color); font-family: var(--font-mono); }
+</style>
+
+<div class="category-header">
+  <h2 id="category-title">分类：{{ .Title }}</h2>
+  <div class="category-meta">共收录 {{ len .Pages }} 篇文章</div>
+</div>
+
+<div class="category-posts">
+  <ul class="post-list" id="category-post-list"></ul>
+</div>
+
+<!-- 分页导航容器 -->
+<div class="pagination" id="category-pagination" style="display: none;"></div>
+
+<!-- 1. 将该分类下的所有文章安全导出为 JSON 数组 -->
+<script type="application/json" id="category-posts-json">
+  [
+    {{- $first := true -}}
+    {{- range .Pages -}}
+      {{- if not $first -}},{{- end -}}
+      {
+        "title": {{- .Title -}},
+        "url": "{{ .RelPermalink }}",
+        "date": "{{ .Date.Format "2006-01-02" }}"
+      }
+      {{- $first = false -}}
+    {{- end -}}
+  ]
+</script>
+
+<!-- 2. 复用与首页完全一致的纯前端分页渲染与跳转逻辑 -->
+<script>
+  var rawPosts = JSON.parse(document.getElementById('category-posts-json').textContent);
+
+  var pageSize = 30; // 修改为每页 30 篇
+  var currentPage = 1;
+
+  function getPageFromUrl() {
+    var params = new URLSearchParams(window.location.search);
+    var p = parseInt(params.get('page'), 10);
+    return (!isNaN(p) && p > 0) ? p : 1;
+  }
+
+  function renderCategoryPage() {
+    currentPage = getPageFromUrl();
+    var totalPosts = rawPosts.length;
+    var totalPages = Math.ceil(totalPosts / pageSize) || 1;
+
+    if (currentPage > totalPages) currentPage = totalPages;
+
+    var listContainer = document.getElementById('category-post-list');
+    var paginationContainer = document.getElementById('category-pagination');
+
+    var startIndex = (currentPage - 1) * pageSize;
+    var endIndex = Math.min(startIndex + pageSize, totalPosts);
+    var pagePosts = rawPosts.slice(startIndex, endIndex);
+
+    var listHtml = '';
+    pagePosts.forEach(function(post, idx) {
+      var globalSeq = startIndex + idx + 1;
+      var seqStr = (globalSeq < 10 ? '0' : '') + globalSeq;
+
+      listHtml += '<li class="post-item">' +
+                    '<div class="post-left">' +
+                      '<span class="post-index">' + seqStr + '</span>' +
+                      '<a class="post-title" href="' + post.url + '">' + post.title + '</a>' +
+                    '</div>' +
+                    '<span class="post-date">' + post.date + '</span>' +
+                  '</li>';
+    });
+    listContainer.innerHTML = listHtml;
+
+    if (totalPages <= 1) {
+      paginationContainer.style.display = 'none';
+      return;
+    }
+    paginationContainer.style.display = 'flex';
+
+    var pagHtml = '';
+
+    // 首页与上一页
+    if (currentPage > 1) {
+      pagHtml += '<a href="javascript:void(0)" onclick="goToCatPaging(1)">首页</a>';
+      pagHtml += '<a href="javascript:void(0)" onclick="goToCatPaging(' + (currentPage - 1) + ')">上一页</a>';
+    } else {
+      pagHtml += '<span class="disabled">首页</span>';
+      pagHtml += '<span class="disabled">上一页</span>';
+    }
+
+    var startPage, endPage;
+    var maxVisiblePages = 10;
+    if (totalPages <= maxVisiblePages) {
+      startPage = 1; endPage = totalPages;
+    } else {
+      if (currentPage <= 6) {
+        startPage = 1; endPage = 10;
+      } else if (currentPage + 4 >= totalPages) {
+        startPage = totalPages - 9; endPage = totalPages;
+      } else {
+        startPage = currentPage - 4; endPage = currentPage + 5;
+      }
+    }
+
+    if (startPage > 1) {
+      pagHtml += '<a href="javascript:void(0)" onclick="goToCatPaging(1)">1</a>';
+      if (startPage > 2) pagHtml += '<span class="ellipsis">...</span>';
+    }
+
+    for (var i = startPage; i <= endPage; i++) {
+      if (i === currentPage) {
+        pagHtml += '<span class="active">' + i + '</span>';
+      } else {
+        pagHtml += '<a href="javascript:void(0)" onclick="goToCatPaging(' + i + ')">' + i + '</a>';
+      }
+    }
+
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) pagHtml += '<span class="ellipsis">...</span>';
+      pagHtml += '<a href="javascript:void(0)" onclick="goToCatPaging(' + totalPages + ')">' + totalPages + '</a>';
+    }
+
+    if (currentPage < totalPages) {
+      pagHtml += '<a href="javascript:void(0)" onclick="goToCatPaging(' + (currentPage + 1) + ')">下一页</a>';
+      pagHtml += '<a href="javascript:void(0)" onclick="goToCatPaging(' + totalPages + ')">末页</a>';
+    } else {
+      pagHtml += '<span class="disabled">下一页</span>';
+      pagHtml += '<span class="disabled">末页</span>';
+    }
+
+    // 跳转输入框
+    pagHtml += '<div class="pagination-jump" style="display:inline-flex; align-items:center; margin-left:6px;">' +
+                 '<input type="number" id="cat-jump-input" min="1" max="' + totalPages + '" placeholder="' + currentPage + '">' +
+                 '<button type="button" onclick="handleCatJump(' + totalPages + ')">跳转</button>' +
+               '</div>';
+
+    paginationContainer.innerHTML = pagHtml;
+  }
+
+  function goToCatPaging(page) {
+    var newUrl = window.location.pathname + '?page=' + page;
+    history.pushState(null, '', newUrl);
+    renderCategoryPage();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function handleCatJump(totalPages) {
+    var input = document.getElementById('cat-jump-input');
+    var val = parseInt(input.value, 10);
+    if (isNaN(val) || val < 1) val = 1;
+    if (val > totalPages) val = totalPages;
+    goToCatPaging(val);
+  }
+
+  window.addEventListener('popstate', renderCategoryPage);
+  window.addEventListener('DOMContentLoaded', renderCategoryPage);
+</script>
+{{ end }}

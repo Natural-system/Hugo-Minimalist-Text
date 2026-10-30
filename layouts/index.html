@@ -1,0 +1,144 @@
+{{ define "main" }}
+<h2>文章列表</h2>
+
+<div class="home-posts">
+  <ul class="post-list" id="home-post-list"></ul>
+</div>
+
+<div class="pagination" id="home-pagination" style="display: none;"></div>
+
+<script>
+  var rawPosts = [
+    {{- $first := true -}}
+    {{- range .Site.RegularPages -}}
+      {{- if not $first -}},{{- end -}}
+      {
+        "title": {{- .Title -}},
+        "url": "{{ .RelPermalink }}",
+        "date": "{{ .Date.Format "2006-01-02" }}"
+      }
+      {{- $first = false -}}
+    {{- end -}}
+  ];
+
+  var pageSize = 20;
+  var currentPage = 1;
+
+  function getPageFromUrl() {
+    var params = new URLSearchParams(window.location.search);
+    var p = parseInt(params.get('page'), 10);
+    return (!isNaN(p) && p > 0) ? p : 1;
+  }
+
+  function renderHomePage() {
+    currentPage = getPageFromUrl();
+    var totalPosts = rawPosts.length;
+    var totalPages = Math.ceil(totalPosts / pageSize) || 1;
+
+    if (currentPage > totalPages) currentPage = totalPages;
+
+    var listContainer = document.getElementById('home-post-list');
+    var paginationContainer = document.getElementById('home-pagination');
+
+    var startIndex = (currentPage - 1) * pageSize;
+    var endIndex = Math.min(startIndex + pageSize, totalPosts);
+    var pagePosts = rawPosts.slice(startIndex, endIndex);
+
+    var listHtml = '';
+    pagePosts.forEach(function(post, idx) {
+      var globalSeq = startIndex + idx + 1;
+      var seqStr = (globalSeq < 10 ? '0' : '') + globalSeq;
+
+      listHtml += '<li class="post-item">' +
+                    '<div class="post-left">' +
+                      '<span class="post-index">' + seqStr + '</span>' +
+                      '<a class="post-title" href="' + post.url + '">' + post.title + '</a>' +
+                    '</div>' +
+                    '<span class="post-date">' + post.date + '</span>' +
+                  '</li>';
+    });
+    listContainer.innerHTML = listHtml;
+
+    if (totalPages <= 1) {
+      paginationContainer.style.display = 'none';
+      return;
+    }
+    paginationContainer.style.display = 'flex';
+
+    var pagHtml = '';
+
+    if (currentPage > 1) {
+      pagHtml += '<a href="javascript:void(0)" onclick="goToHomePaging(1)">首页</a>';
+      pagHtml += '<a href="javascript:void(0)" onclick="goToHomePaging(' + (currentPage - 1) + ')">上一页</a>';
+    } else {
+      pagHtml += '<span class="disabled">首页</span>';
+      pagHtml += '<span class="disabled">上一页</span>';
+    }
+
+    var startPage, endPage;
+    var maxVisiblePages = 10;
+    if (totalPages <= maxVisiblePages) {
+      startPage = 1; endPage = totalPages;
+    } else {
+      if (currentPage <= 6) {
+        startPage = 1; endPage = 10;
+      } else if (currentPage + 4 >= totalPages) {
+        startPage = totalPages - 9; endPage = totalPages;
+      } else {
+        startPage = currentPage - 4; endPage = currentPage + 5;
+      }
+    }
+
+    if (startPage > 1) {
+      pagHtml += '<a href="javascript:void(0)" onclick="goToHomePaging(1)">1</a>';
+      if (startPage > 2) pagHtml += '<span class="ellipsis">...</span>';
+    }
+
+    for (var i = startPage; i <= endPage; i++) {
+      if (i === currentPage) {
+        pagHtml += '<span class="active">' + i + '</span>';
+      } else {
+        pagHtml += '<a href="javascript:void(0)" onclick="goToHomePaging(' + i + ')">' + i + '</a>';
+      }
+    }
+
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) pagHtml += '<span class="ellipsis">...</span>';
+      pagHtml += '<a href="javascript:void(0)" onclick="goToHomePaging(' + totalPages + ')">' + totalPages + '</a>';
+    }
+
+    if (currentPage < totalPages) {
+      pagHtml += '<a href="javascript:void(0)" onclick="goToHomePaging(' + (currentPage + 1) + ')">下一页</a>';
+      pagHtml += '<a href="javascript:void(0)" onclick="goToHomePaging(' + totalPages + ')">末页</a>';
+    } else {
+      pagHtml += '<span class="disabled">下一页</span>';
+      pagHtml += '<span class="disabled">末页</span>';
+    }
+
+    pagHtml += '<div class="pagination-jump" style="display:inline-flex; align-items:center; margin-left:6px;">' +
+                 '<input type="number" id="home-jump-input" min="1" max="' + totalPages + '" placeholder="' + currentPage + '">' +
+                 '<button type="button" onclick="handleHomeJump(' + totalPages + ')">跳转</button>' +
+               '</div>';
+
+    paginationContainer.innerHTML = pagHtml;
+  }
+
+  function goToHomePaging(page) {
+    var newUrl = window.location.pathname + '?page=' + page;
+    history.pushState(null, '', newUrl);
+    renderHomePage();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function handleHomeJump(totalPages) {
+    var input = document.getElementById('home-jump-input');
+    var val = parseInt(input.value, 10);
+    if (isNaN(val) || val < 1) val = 1;
+    if (val > totalPages) val = totalPages;
+    goToHomePaging(val);
+  }
+
+  window.addEventListener('popstate', renderHomePage);
+  window.addEventListener('DOMContentLoaded', renderHomePage);
+</script>
+{{ end }}

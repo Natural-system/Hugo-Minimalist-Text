@@ -1,0 +1,200 @@
+{{ define "main" }}
+<div class="layout-grid">
+  <aside class="sidebar-toc">
+    <div class="toc-title">目录</div>
+    <div class="toc-content" id="js-toc"></div>
+  </aside>
+
+  <article class="article-container">
+    <header class="article-header" style="margin-bottom: 30px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px;">
+      <h1 class="article-title" style="font-size: 1.8rem; line-height: 1.3; margin: 0 0 10px 0;">{{ .Title }}</h1>
+      
+      <!-- 使用 findRE 正确计算真实 Unicode 字符数 -->
+      {{ $realWordCount := len (findRE "." (.Content | plainify)) }}
+      <div class="meta-info" style="font-size: 0.85rem; color: var(--muted-color); font-family: var(--font-mono);">
+        发布日期：{{ .Date.Format "2006-01-02" }} 
+        
+        {{ with .Params.categories }}
+          &nbsp;|&nbsp; 分类：
+          {{ if reflect.IsSlice . }}
+            {{ delimit . ", " }}
+          {{ else }}
+            {{ . }}
+          {{ end }}
+        {{ end }}
+        
+        &nbsp;|&nbsp; 字数：{{ $realWordCount }} 字 
+        &nbsp;|&nbsp; 预计阅读：{{ div $realWordCount 500 | math.Ceil | int }} 分钟
+      </div>
+    </header>
+
+    <div class="article-body js-article-body" style="line-height: 1.8;">
+      {{ .Content }}
+    </div>
+
+    <!-- Giscus 评论系统 -->
+    <div class="article-comments" style="margin-top: 3rem;">
+      <script src="https://giscus.app/client.js"
+              data-repo="Natural-system/self-transcendence"
+              data-repo-id="R_kgDOTyeF1g"
+              data-category="General"
+              data-category-id="DIC_kwDOTyeF1s4DE8hV"
+              data-mapping="pathname"
+              data-strict="0"
+              data-reactions-enabled="1"
+              data-emit-metadata="0"
+              data-input-position="bottom"
+              data-theme="light"
+              data-lang="zh-CN"
+              crossorigin="anonymous"
+              async>
+      </script>
+    </div>
+  </article>
+</div>
+
+<style>
+  /* ---------------- 引言 (Blockquote) 美化样式 ---------------- */
+  main article blockquote {
+    margin: 1.5em 0;
+    padding: 12px 20px;
+    background-color: rgba(0, 0, 0, 0.025);
+    border-left: 4px solid var(--accent-color);
+    color: var(--text-color);
+    border-radius: 0 4px 4px 0;
+    font-style: italic;
+  }
+  html[data-theme="dark"] main article blockquote {
+    background-color: rgba(255, 255, 255, 0.04);
+  }
+
+  /* ---------------- 代码块 (Code Block) 美化样式 ---------------- */
+  main article pre {
+    background-color: var(--code-bg, #1e1e1e) !important;
+    color: #dcdcdc;
+    padding: 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    margin: 1.5em 0;
+    border: 1px solid var(--code-border, transparent);
+  }
+  main article code {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+    padding: 2px 5px;
+    border-radius: 4px;
+    background-color: rgba(0, 0, 0, 0.06);
+  }
+  main article pre code {
+    background-color: transparent;
+    padding: 0;
+    color: inherit;
+  }
+  html[data-theme="dark"] main article code {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+/* ---------------- 目录 (TOC) 样式调整：字号稍大，行距紧凑 ---------------- */
+  .sidebar-toc {
+    font-family: var(--font-mono) !important; /* 等宽字体 */
+    font-weight: 300 !important; /* 字体纤细 */
+  }
+  .toc-title {
+    font-weight: 500;
+    margin-bottom: 8px; /* 标题与下方列表间距缩小 */
+    color: var(--muted-color);
+    font-size: 0.82rem;
+    font-family: var(--font-mono);
+  }
+  .sidebar-toc ul { 
+    list-style: none !important; 
+    padding-left: 0 !important; 
+    margin: 0 !important; 
+  }
+  .sidebar-toc li { 
+    list-style: none !important; 
+    margin: 2px 0 !important; /* 减小上下条目的间距（从5px降到2px） */
+    line-height: 1.25; /* 收紧文字本身的行高（从1.4降到1.25） */
+  }
+/* ---------------- 目录 (TOC) 极轻微悬停动效 ---------------- */
+  .sidebar-toc a {
+    font-size: 0.82rem !important; 
+    color: var(--text-color);
+    text-decoration: none !important;
+    display: inline-block;
+    font-weight: 300;
+    
+    /* 平滑过渡：仅保留极轻微的位移与颜色渐变 */
+    transition: transform 0.25s ease-out, 
+                color 0.25s ease-out;
+  }
+
+  /* 悬停状态：仅微移 1.5px，色值平滑过渡 */
+  .sidebar-toc a:hover {
+    color: var(--accent-color);
+    transform: translateX(1.5px); /* 极其轻微的向右微动 */
+  }
+  
+/* ---------------- 智能动态层级符号与缩进（已将符号与文字的距离缩短一半） ---------------- */
+  .toc-level-1 { padding-left: 0px; }
+  .toc-level-1 > a::before { content: "● "; font-size: 0.85rem; color: var(--accent-color); margin-right: 2px; }
+
+  .toc-level-2 { padding-left: 10px; }
+  .toc-level-2 > a::before { content: "○ "; font-size: 0.85rem; color: var(--muted-color); margin-right: 2px; }
+
+  .toc-level-3 { padding-left: 20px; }
+  .toc-level-3 > a::before { content: "- "; font-size: 0.9rem; color: var(--muted-color); margin-right: 2px; }
+
+    </style>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    var articleBody = document.querySelector('.js-article-body');
+    var tocContainer = document.getElementById('js-toc');
+    if (!articleBody || !tocContainer) return;
+
+    // 获取文章中出现的所有 h2, h3, h4
+    var headings = articleBody.querySelectorAll('h2, h3, h4');
+    if (headings.length === 0) {
+      tocContainer.innerHTML = '<span style="color:var(--muted-color);">暂无目录</span>';
+      return;
+    }
+
+    // 智能动态计算：找出文章中实际出现的最高等级标题（例如：如果没有h2，最大的是h3，则把h3视为最高等级）
+    var minLevel = 6;
+    headings.forEach(function(heading) {
+      var level = parseInt(heading.tagName.substring(1), 10);
+      if (level < minLevel) {
+        minLevel = level;
+      }
+    });
+
+    var ul = document.createElement('ul');
+    headings.forEach(function(heading, index) {
+      if (!heading.id) {
+        heading.id = 'toc-heading-' + index;
+      }
+
+      var currentLevel = parseInt(heading.tagName.substring(1), 10);
+      // 计算相对层级：最高等级映射为 level-1（实心圆），次一级映射为 level-2（空心圆），以此类推
+      var relativeIndex = currentLevel - minLevel + 1;
+      if (relativeIndex < 1) relativeIndex = 1;
+      if (relativeIndex > 3) relativeIndex = 3;
+
+      var li = document.createElement('li');
+      li.className = 'toc-level-' + relativeIndex;
+
+      var a = document.createElement('a');
+      a.href = '#' + heading.id;
+      a.textContent = heading.textContent;
+      
+      li.appendChild(a);
+      ul.appendChild(li);
+    });
+
+    tocContainer.appendChild(ul);
+  });
+</script>
+{{ end }}

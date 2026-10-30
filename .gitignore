@@ -17,3 +17,8 @@ _posts/Typora_Hook_Log*
 
 # 部署生成的结构文本
 structure.txt
+
+public/
+resources/
+
+.hugo_build.lock
