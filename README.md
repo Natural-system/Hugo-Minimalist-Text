@@ -1,4 +1,4 @@
-# Hugo Minimalist Text 个人极简纯文字博客 · 技术主题实现
+# Hugo Minimalist Text 个人极简纯文字网站
 这个开源项目是基于 hugo 构建，为了快速地发布文章，提升阅读体验，长久免费储存托管在github而设计为纯文字博客，最大降低占用容量，快速响应
 ---
 
