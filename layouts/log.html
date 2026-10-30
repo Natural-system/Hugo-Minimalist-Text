@@ -1,0 +1,623 @@
+{{ define "main" }}
+<style>
+  .log-page-layout {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    max-width: 980px;
+    margin: 0 auto;
+    position: relative;
+  }
+
+  .log-container {
+    flex: 1;
+    max-width: 800px;
+    min-width: 0;
+  }
+
+/* --- 左侧时间线侧边栏样式（已锁定字号，不随全局字体缩放） --- */
+  .log-sidebar {
+    width: 110px;
+    flex-shrink: 0;
+    font-size: 0.88rem !important;
+  }
+
+  .log-sidebar-inner {
+    position: sticky;
+    top: 20px;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    padding-right: 10px;
+    font-family: var(--font-mono);
+    font-size: 0.88rem !important;
+  }
+
+  .log-sidebar-title {
+    font-size: 0.95rem !important;
+    font-weight: 700;
+    color: var(--text-color);
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .timeline-tree, .timeline-tree ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+  }
+
+  .timeline-tree ul {
+    padding-left: 14px;
+    display: none; /* 默认折叠 */
+  }
+
+  .timeline-tree ul.open {
+    display: block;
+  }
+
+  .timeline-tree li {
+    margin: 4px 0;
+    line-height: 1.5;
+    font-size: 0.88rem !important;
+  }
+
+  .timeline-node {
+    cursor: pointer;
+    color: var(--muted-color);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    user-select: none;
+    transition: color 0.2s;
+    font-size: 0.85rem !important;
+  }
+
+  .timeline-node:hover {
+    color: var(--accent-color);
+  }
+
+  .timeline-node.active {
+    color: var(--accent-color);
+    font-weight: 600;
+  }
+
+  .timeline-arrow {
+    font-size: 0.75rem !important;
+    display: inline-block;
+    transition: transform 0.2s;
+    width: 12px;
+  }
+
+  .timeline-node.expanded > .timeline-arrow {
+    transform: rotate(90deg);
+  }
+
+  .timeline-date-link {
+    cursor: pointer;
+    color: var(--muted-color);
+    font-size: 0.83rem !important;
+    display: block;
+    padding: 2px 0;
+    transition: color 0.2s;
+  }
+
+  .timeline-date-link:hover {
+    color: var(--accent-color);
+  }
+  /* 移动端时间线切换按钮 */
+  .timeline-toggle-btn {
+    display: none;
+    position: fixed;
+    bottom: 25px;
+    right: 25px;
+    z-index: 99;
+    background: var(--accent-color);
+    color: #fff;
+    border: none;
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    cursor: pointer;
+  }
+
+  @media (max-width: 991px) {
+    .log-sidebar {
+      position: fixed;
+      right: 20px;
+      bottom: 70px;
+      z-index: 98;
+      background: var(--bg-color);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 15px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+      width: 220px;
+      display: none;
+    }
+    .log-sidebar.mobile-show {
+      display: block;
+    }
+    .timeline-toggle-btn {
+      display: block;
+    }
+  }
+
+  @keyframes highlightFade {
+    0% { background-color: rgba(255, 235, 59, 0.3); }
+    100% { background-color: transparent; }
+  }
+
+  .item-highlight {
+    animation: highlightFade 2.5s ease-out;
+    border-radius: 4px;
+  }
+
+  .log-year-title {
+    font-size: 1.6rem !important;
+    font-weight: 700 !important;
+    color: var(--text-color);
+    margin: 40px 0 15px 0;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--accent-color);
+    letter-spacing: 0.5px;
+  }
+  .log-year-title:first-child {
+    margin-top: 10px;
+  }
+
+  .log-month-title {
+    font-size: 1.25rem !important;
+    font-weight: 700 !important;
+    color: var(--text-color);
+    opacity: 0.9;
+    margin: 25px 0 12px 0;
+    padding-left: 6px;
+    border-left: 3px solid var(--muted-color);
+    line-height: 1.2;
+  }
+
+  .log-timeline {
+    position: relative;
+    padding-left: 18px;
+    margin-bottom: 15px;
+    border-left: 2px solid var(--border-color);
+  }
+
+  .log-item {
+    position: relative;
+    margin-bottom: 24px;
+  }
+
+  .log-item::before {
+    content: "";
+    position: absolute;
+    left: -23px;
+    top: 5px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--accent-color);
+    border: 2px solid var(--bg-color);
+  }
+
+  .log-item h3, 
+  main .log-item h3, 
+  article .log-item h3 {
+    font-family: var(--font-mono);
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    color: var(--muted-color);
+    margin: 0 0 6px 0;
+    padding: 0;
+    border: none;
+    line-height: 1.3;
+  }
+
+  .log-item p {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--text-color);
+    margin: 0 0 12px 0;
+  }
+  .log-item p:last-child {
+    margin-bottom: 0;
+  }
+
+  .log-infinite-scroll-trigger {
+    text-align: center;
+    padding: 20px 0;
+    font-size: 0.85rem;
+    font-family: var(--font-mono);
+    color: var(--muted-color);
+  }
+
+  .log-stats {
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: var(--muted-color);
+    font-family: var(--font-mono);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+</style>
+
+<div class="log-page-layout">
+  <!-- 左侧折叠时间线侧边栏 -->
+  <aside class="log-sidebar" id="log-sidebar">
+    <div class="log-sidebar-inner">
+      <div class="log-sidebar-title">时间线导航</div>
+      <div id="timeline-tree-container"></div>
+    </div>
+  </aside>
+
+  <!-- 移动端侧栏切换按钮 -->
+  <button class="timeline-toggle-btn" id="sidebar-toggle-btn">📅 时间线</button>
+
+  <div class="log-container">
+    <header class="article-header">
+      <h1 class="article-title">{{ .Title }}</h1>
+      <div class="meta-info">
+        记录日常随感与碎片思考 · Fun asr nano大模型语音转文字 · 不检查，零碎，错字勿怪 · 倒序排列
+      </div>
+      <div class="log-stats">
+        <span>全页共 <strong id="log-word-count">-</strong> 字</span>
+        <span>·</span>
+        <span>预计阅读时间 <strong id="log-read-time">-</strong> 分钟</span>
+      </div>
+    </header>
+
+    <!-- 渲染后的日志容器 -->
+    <div id="rendered-log-wrapper"></div>
+
+    <!-- 触底自动加载触发点 / 状态提示 -->
+    <div class="log-infinite-scroll-trigger" id="scroll-trigger" style="display: none;">
+      <span id="trigger-text">正在加载更多历史日志...</span>
+    </div>
+
+    <!-- 隐藏原始 Markdown HTML 内容：通过文件名按数值大小降序排列（如 2027 > 2026 > 2025） -->
+    <div id="raw-log-content" style="display: none;">
+      {{ $logs := where .Site.RegularPages "Section" "logs" }}
+      {{ range sort $logs "File.BaseFileName" "desc" }}
+        {{ .Content }}
+      {{ end }}
+    </div>
+
+    <!-- 评论区系统 (Giscus) -->
+    <div class="article-comments" style="margin-top: 3.5rem; padding-top: 2rem; border-top: 1px solid var(--border-color);">
+      <script src="https://giscus.app/client.js"
+              data-repo="Natural-system/self-transcendence"
+              data-repo-id="R_kgDOTyeF1g"
+              data-category="General"
+              data-category-id="DIC_kwDOTyeF1s4DE8hV"
+              data-mapping="pathname"
+              data-strict="0"
+              data-reactions-enabled="1"
+              data-emit-metadata="0"
+              data-input-position="bottom"
+              data-theme="preferred_color_scheme"
+              data-lang="zh-CN"
+              crossorigin="anonymous"
+              async>
+      </script>
+    </div>
+  </div>
+</div>
+
+<!-- 三级层级解析 + 智能数值降序排序 + 侧栏时间线脚本 -->
+<script>
+  var allLogGroups = [];
+  var currentIndex = 0;
+  var BATCH_SIZE = 50;
+  var isLoading = false;
+
+  document.addEventListener("DOMContentLoaded", function() {
+    var rawEl = document.getElementById('raw-log-content');
+    var wrapper = document.getElementById('rendered-log-wrapper');
+    if (!rawEl || !wrapper) return;
+
+    calculateLogStats(rawEl);
+
+    var nodes = Array.from(rawEl.children);
+    var currentItem = null;
+    var globalItemIndex = 0;
+
+    nodes.forEach(function(node) {
+      var tag = node.tagName.toLowerCase();
+
+      if (tag === 'h1') {
+        if (currentItem) {
+          allLogGroups.push({ type: 'item', node: currentItem, index: globalItemIndex++ });
+          currentItem = null;
+        }
+        allLogGroups.push({ type: 'year', node: node });
+      } 
+      else if (tag === 'h2') {
+        if (currentItem) {
+          allLogGroups.push({ type: 'item', node: currentItem, index: globalItemIndex++ });
+          currentItem = null;
+        }
+        allLogGroups.push({ type: 'month', node: node });
+      }
+      else if (tag === 'h3') {
+        if (currentItem) {
+          allLogGroups.push({ type: 'item', node: currentItem, index: globalItemIndex++ });
+        }
+        currentItem = document.createElement('div');
+        currentItem.className = 'log-item';
+        
+        var dateText = node.textContent.trim();
+        currentItem.setAttribute('data-log-index', globalItemIndex);
+        currentItem.appendChild(node);
+      } 
+      else if (currentItem) {
+        currentItem.appendChild(node);
+      }
+    });
+
+    if (currentItem) {
+      allLogGroups.push({ type: 'item', node: currentItem, index: globalItemIndex++ });
+    }
+
+    buildTimelineSidebar();
+    loadNextBatch();
+    setupInfiniteScroll();
+    setupMobileSidebar();
+  });
+
+  function calculateLogStats(rawEl) {
+    var text = rawEl.textContent || rawEl.innerText || '';
+    var cjkCount = (text.match(/[\u4e00-\u9fa5\u3040-\u30ff\uac00-\ud7af]/g) || []).length;
+    var englishWordsCount = (text.replace(/[\u4e00-\u9fa5\u3040-\u30ff\uac00-\ud7af]/g, ' ').match(/\b\w+\b/g) || []).length;
+
+    var totalWords = cjkCount + englishWordsCount;
+    var readTime = Math.max(1, Math.ceil(totalWords / 400));
+
+    var wordCountEl = document.getElementById('log-word-count');
+    var readTimeEl = document.getElementById('log-read-time');
+
+    if (wordCountEl) wordCountEl.textContent = totalWords.toLocaleString();
+    if (readTimeEl) readTimeEl.textContent = readTime;
+  }
+
+  function buildTimelineSidebar() {
+    var container = document.getElementById('timeline-tree-container');
+    if (!container) return;
+
+    var treeData = [];
+    var currentYearObj = null;
+    var currentMonthObj = null;
+
+    allLogGroups.forEach(function(group) {
+      if (group.type === 'year') {
+        currentYearObj = {
+          yearName: group.node.textContent.trim(),
+          months: []
+        };
+        treeData.push(currentYearObj);
+        currentMonthObj = null;
+      } 
+      else if (group.type === 'month') {
+        if (!currentYearObj) {
+          currentYearObj = { yearName: '未分类', months: [] };
+          treeData.push(currentYearObj);
+        }
+        currentMonthObj = {
+          monthName: group.node.textContent.trim(),
+          items: []
+        };
+        currentYearObj.months.push(currentMonthObj);
+      } 
+      else if (group.type === 'item') {
+        if (currentMonthObj) {
+          var h3El = group.node.querySelector('h3');
+          var dateTitle = h3El ? h3El.textContent.trim() : '日志';
+          currentMonthObj.items.push({
+            dateTitle: dateTitle,
+            globalIndex: group.index
+          });
+        }
+      }
+    });
+
+    // 【远见功能升级】：对年份进行数值降序排序（如 2027 > 2026 > 2025），确保未来新增年份自动排在最上方
+    treeData.sort(function(a, b) {
+      var yearA = parseInt(a.yearName) || 0;
+      var yearB = parseInt(b.yearName) || 0;
+      return yearB - yearA;
+    });
+
+    var treeUl = document.createElement('ul');
+    treeUl.className = 'timeline-tree';
+
+    treeData.forEach(function(yearItem) {
+      var yearLi = document.createElement('li');
+      
+      var yearNode = document.createElement('div');
+      yearNode.className = 'timeline-node';
+      yearNode.innerHTML = '<span class="timeline-arrow">▶</span> <span>' + yearItem.yearName + '</span>';
+      
+      var monthUl = document.createElement('ul');
+
+      yearItem.months.forEach(function(monthItem) {
+        var monthLi = document.createElement('li');
+        
+        var monthNode = document.createElement('div');
+        monthNode.className = 'timeline-node';
+        monthNode.innerHTML = '<span class="timeline-arrow">▶</span> <span>' + monthItem.monthName + '</span>';
+
+        var dateUl = document.createElement('ul');
+
+        monthItem.items.forEach(function(dateItem) {
+          var dateLi = document.createElement('li');
+          var dateLink = document.createElement('span');
+          dateLink.className = 'timeline-date-link';
+          dateLink.textContent = dateItem.dateTitle;
+
+          dateLink.addEventListener('click', function(e) {
+            e.stopPropagation();
+            jumpToLogIndex(dateItem.globalIndex);
+          });
+
+          dateLi.appendChild(dateLink);
+          dateUl.appendChild(dateLi);
+        });
+
+        monthNode.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var isOpen = dateUl.classList.contains('open');
+          if (isOpen) {
+            dateUl.classList.remove('open');
+            monthNode.classList.remove('expanded');
+          } else {
+            dateUl.classList.add('open');
+            monthNode.classList.add('expanded');
+          }
+        });
+
+        monthLi.appendChild(monthNode);
+        monthLi.appendChild(dateUl);
+        monthUl.appendChild(monthLi);
+      });
+
+      yearNode.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var isOpen = monthUl.classList.contains('open');
+        if (isOpen) {
+          monthUl.classList.remove('open');
+          yearNode.classList.remove('expanded');
+        } else {
+          monthUl.classList.add('open');
+          yearNode.classList.add('expanded');
+        }
+      });
+
+      yearLi.appendChild(yearNode);
+      yearLi.appendChild(monthUl);
+      treeUl.appendChild(yearLi);
+    });
+
+    container.appendChild(treeUl);
+  }
+
+  function jumpToLogIndex(targetIndex) {
+    var wrapper = document.getElementById('rendered-log-wrapper');
+    var targetEl = wrapper.querySelector('[data-log-index="' + targetIndex + '"]');
+
+    while (!targetEl && currentIndex < allLogGroups.length) {
+      loadNextBatch();
+      targetEl = wrapper.querySelector('[data-log-index="' + targetIndex + '"]');
+    }
+
+    if (targetEl) {
+      targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      targetEl.classList.remove('item-highlight');
+      void targetEl.offsetWidth;
+      targetEl.classList.add('item-highlight');
+    }
+
+    var sidebar = document.getElementById('log-sidebar');
+    if (sidebar) sidebar.classList.remove('mobile-show');
+  }
+
+  function loadNextBatch() {
+    if (isLoading) return;
+    isLoading = true;
+
+    var wrapper = document.getElementById('rendered-log-wrapper');
+    var triggerBox = document.getElementById('scroll-trigger');
+    var triggerText = document.getElementById('trigger-text');
+
+    var renderedItemsCount = 0;
+    var activeTimeline = wrapper.querySelector('.log-timeline:last-child');
+
+    while (currentIndex < allLogGroups.length && renderedItemsCount < BATCH_SIZE) {
+      var group = allLogGroups[currentIndex];
+
+      if (group.type === 'year') {
+        var yearDiv = document.createElement('div');
+        yearDiv.className = 'log-year-title';
+        yearDiv.innerHTML = group.node.innerHTML;
+        wrapper.appendChild(yearDiv);
+        activeTimeline = null; 
+      } 
+      else if (group.type === 'month') {
+        var monthDiv = document.createElement('div');
+        monthDiv.className = 'log-month-title';
+        monthDiv.innerHTML = group.node.innerHTML;
+        wrapper.appendChild(monthDiv);
+
+        activeTimeline = document.createElement('div');
+        activeTimeline.className = 'log-timeline';
+        wrapper.appendChild(activeTimeline);
+      }
+      else if (group.type === 'item') {
+        if (!activeTimeline) {
+          activeTimeline = document.createElement('div');
+          activeTimeline.className = 'log-timeline';
+          wrapper.appendChild(activeTimeline);
+        }
+        activeTimeline.appendChild(group.node);
+        renderedItemsCount++;
+      }
+
+      currentIndex++;
+    }
+
+    var totalItems = allLogGroups.filter(g => g.type === 'item').length;
+    var currentRenderedItems = wrapper.querySelectorAll('.log-item').length;
+    var remaining = totalItems - currentRenderedItems;
+
+    if (remaining > 0) {
+      triggerBox.style.display = 'block';
+      triggerText.textContent = '向下滚动加载更多历史日志 (剩余 ' + remaining + ' 条)';
+    } else {
+      triggerBox.style.display = 'block';
+      triggerText.textContent = '— 已加载全部随想日志 —';
+    }
+
+    isLoading = false;
+  }
+
+  function setupInfiniteScroll() {
+    var triggerEl = document.getElementById('scroll-trigger');
+    if (!triggerEl) return;
+
+    var observer = new IntersectionObserver(function(entries) {
+      if (entries[0].isIntersecting) {
+        var totalItems = allLogGroups.filter(g => g.type === 'item').length;
+        var wrapper = document.getElementById('rendered-log-wrapper');
+        var currentRenderedItems = wrapper ? wrapper.querySelectorAll('.log-item').length : 0;
+
+        if (currentRenderedItems < totalItems) {
+          loadNextBatch();
+        }
+      }
+    }, {
+      rootMargin: '200px'
+    });
+
+    observer.observe(triggerEl);
+  }
+
+  function setupMobileSidebar() {
+    var toggleBtn = document.getElementById('sidebar-toggle-btn');
+    var sidebar = document.getElementById('log-sidebar');
+
+    if (toggleBtn && sidebar) {
+      toggleBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        sidebar.classList.toggle('mobile-show');
+      });
+
+      document.addEventListener('click', function(e) {
+        if (!sidebar.contains(e.target) && !toggleBtn.contains(e.target)) {
+          sidebar.classList.remove('mobile-show');
+        }
+      });
+    }
+  }
+</script>
+{{ end }}

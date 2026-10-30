@@ -1,0 +1,348 @@
+{{ define "main" }}
+<style>
+  .log-page-layout {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    max-width: 980px;
+    margin: 0 auto;
+    position: relative;
+  }
+
+  .log-container {
+    flex: 1;
+    max-width: 800px;
+    min-width: 0;
+  }
+
+  /* --- 左侧年份导航侧边栏样式 --- */
+  .log-sidebar {
+    width: 130px;
+    flex-shrink: 0;
+    font-size: 0.88rem !important;
+  }
+
+  .log-sidebar-inner {
+    position: sticky;
+    top: 20px;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    padding-right: 10px;
+    font-family: var(--font-mono);
+  }
+
+  .log-sidebar-title {
+    font-size: 0.95rem !important;
+    font-weight: 700;
+    color: var(--text-color);
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .year-nav-list {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+  }
+
+  .year-nav-item {
+    margin: 6px 0;
+  }
+
+  .year-nav-link {
+    display: block;
+    padding: 4px 8px;
+    color: var(--muted-color);
+    text-decoration: none;
+    border-radius: 4px;
+    transition: all 0.2s;
+  }
+
+  .year-nav-link:hover {
+    color: var(--accent-color);
+    background: var(--border-color);
+    opacity: 0.2;
+  }
+
+  .year-nav-link.active {
+    color: var(--accent-color);
+    font-weight: 600;
+    background: rgba(var(--accent-color-rgb), 0.1);
+  }
+
+  /* --- 页面标题与文章样式 --- */
+  .log-year-title {
+    font-size: 1.6rem !important;
+    font-weight: 700 !important;
+    color: var(--text-color);
+    margin: 10px 0 15px 0;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--accent-color);
+    letter-spacing: 0.5px;
+  }
+
+  .log-month-title {
+    font-size: 1.25rem !important;
+    font-weight: 700 !important;
+    color: var(--text-color);
+    opacity: 0.9;
+    margin: 25px 0 12px 0;
+    padding-left: 6px;
+    border-left: 3px solid var(--muted-color);
+    line-height: 1.2;
+  }
+
+  .log-timeline {
+    position: relative;
+    padding-left: 18px;
+    margin-bottom: 15px;
+    border-left: 2px solid var(--border-color);
+  }
+
+  .log-item {
+    position: relative;
+    margin-bottom: 24px;
+  }
+
+  .log-item::before {
+    content: "";
+    position: absolute;
+    left: -23px;
+    top: 5px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--accent-color);
+    border: 2px solid var(--bg-color);
+  }
+
+  .log-item h3 {
+    font-family: var(--font-mono);
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    color: var(--muted-color);
+    margin: 0 0 6px 0;
+    padding: 0;
+    border: none;
+    line-height: 1.3;
+  }
+
+  .log-item p {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--text-color);
+    margin: 0 0 12px 0;
+  }
+
+  .log-stats {
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: var(--muted-color);
+    font-family: var(--font-mono);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* 懒加载加载中提示 */
+  .load-more-indicator {
+    text-align: center;
+    padding: 20px;
+    color: var(--muted-color);
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+  }
+</style>
+
+<div class="log-page-layout">
+  <!-- 左侧：多页面年份导航侧边栏 -->
+  <aside class="log-sidebar" id="log-sidebar">
+    <div class="log-sidebar-inner">
+      <div class="log-sidebar-title">年份归档</div>
+      <ul class="year-nav-list">
+        {{ $currentPage := . }}
+        {{ $allLogs := where .Site.RegularPages "Section" "logs" }}
+        {{ range sort $allLogs "File.BaseFileName" "desc" }}
+          <li class="year-nav-item">
+            <a href="{{ .RelPermalink }}" class="year-nav-link {{ if eq $currentPage . }}active{{ end }}">
+              {{ .Title }}
+            </a>
+          </li>
+        {{ end }}
+      </ul>
+    </div>
+  </aside>
+
+  <!-- 右侧：当前年份的日志正文 -->
+  <div class="log-container">
+    <header class="article-header">
+      <h1 class="article-title">{{ .Title }} 随想日志</h1>
+      <div class="meta-info">
+        记录日常随感与碎片思考 · 滚动懒加载架构 · 倒序排列
+      </div>
+      <div class="log-stats">
+        <span>本页共 <strong id="log-word-count">-</strong> 字</span>
+        <span>·</span>
+        <span>预计阅读时间 <strong id="log-read-time">-</strong> 分钟</span>
+      </div>
+    </header>
+
+    <!-- 【隐藏的原始仓库】：SEO爬虫能读到，但页面不直接全量展示，用于供JS按需切片 -->
+    <div id="raw-log-content" style="display: none;">
+      {{ .Content }}
+    </div>
+
+    <!-- 【可见的正文舞台】：初始只渲染一小部分，随滚动逐步追加 -->
+    <div id="visible-log-container" style="margin-top: 2rem;"></div>
+
+    <!-- 滚动加载提示 -->
+    <div id="load-more-indicator" class="load-more-indicator" style="display: none;">正在加载更多历史记录...</div>
+
+    <!-- 评论区系统 (Giscus) -->
+    <div class="article-comments" style="margin-top: 3.5rem; padding-top: 2rem; border-top: 1px solid var(--border-color);">
+      <script src="https://giscus.app/client.js"
+              data-repo="Natural-system/self-transcendence"
+              data-repo-id="R_kgDOTyeF1g"
+              data-category="General"
+              data-category-id="DIC_kwDOTyeF1s4DE8hV"
+              data-mapping="pathname"
+              data-strict="0"
+              data-reactions-enabled="1"
+              data-emit-metadata="0"
+              data-input-position="bottom"
+              data-theme="preferred_color_scheme"
+              data-lang="zh-CN"
+              crossorigin="anonymous"
+              async>
+      </script>
+    </div>
+  </div>
+</div>
+
+<!-- 单年度内部滚动懒加载逻辑 -->
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    var rawContainer = document.getElementById('raw-log-content');
+    var visibleContainer = document.getElementById('visible-log-container');
+    var indicator = document.getElementById('load-more-indicator');
+    if (!rawContainer || !visibleContainer) return;
+
+    // 1. 全局字数统计（基于原始仓库，保证数据准确）
+    var text = rawContainer.textContent || rawContainer.innerText || '';
+    var cjkCount = (text.match(/[\u4e00-\u9fa5\u3040-\u30ff\uac00-\ud7af]/g) || []).length;
+    var englishWordsCount = (text.replace(/[\u4e00-\u9fa5\u3040-\u30ff\uac00-\ud7af]/g, ' ').match(/\b\w+\b/g) || []).length;
+    var totalWords = cjkCount + englishWordsCount;
+    var readTime = Math.max(1, Math.ceil(totalWords / 400));
+
+    var wordCountEl = document.getElementById('log-word-count');
+    var readTimeEl = document.getElementById('log-read-time');
+    if (wordCountEl) wordCountEl.textContent = totalWords.toLocaleString();
+    if (readTimeEl) readTimeEl.textContent = readTime;
+
+    // 2. 解析原始 DOM 并提取所有的 log-item（按天）
+    var nodes = Array.from(rawContainer.children);
+    var allItems = [];
+    var currentMonthNode = null;
+    var currentTimeline = null;
+    var currentItem = null;
+
+    // 我们将内容解构为：按月份分组的结构单元
+    var structuralBlocks = [];
+    var activeBlock = null;
+
+    nodes.forEach(function(node) {
+      var tag = node.tagName ? node.tagName.toLowerCase() : '';
+
+      if (tag === 'h1') {
+        structuralBlocks.push({ type: 'h1', node: node.cloneNode(true) });
+      } 
+      else if (tag === 'h2') {
+        activeBlock = { monthNode: node.cloneNode(true), items: [] };
+        structuralBlocks.push(activeBlock);
+      }
+      else if (tag === 'h3') {
+        if (currentItem && activeBlock) {
+          activeBlock.items.push(currentItem);
+        }
+        currentItem = document.createElement('div');
+        currentItem.className = 'log-item';
+        currentItem.appendChild(node.cloneNode(true));
+      }
+      else if (currentItem) {
+        currentItem.appendChild(node.cloneNode(true));
+      }
+      else if (activeBlock) {
+        // 其他游离元素直接塞进当前月份块
+        var p = document.createElement('div');
+        p.appendChild(node.cloneNode(true));
+        activeBlock.items.push(p);
+      }
+    });
+    if (currentItem && activeBlock) {
+      activeBlock.items.push(currentItem);
+    }
+
+    // 3. 滚动懒加载控制变量
+    var batchSize = 15; // 每次加载 15 条日志
+    var blockIndex = 0;
+    var itemIndexInsideBlock = 0;
+
+    function renderNextBatch() {
+      if (blockIndex >= structuralBlocks.length) {
+        if (indicator) indicator.style.display = 'none';
+        return;
+      }
+
+      if (indicator) indicator.style.display = 'block';
+
+      var block = structuralBlocks[blockIndex];
+      
+      if (block.type === 'h1') {
+        visibleContainer.appendChild(block.node);
+        blockIndex++;
+        setTimeout(renderNextBatch, 50);
+        return;
+      }
+
+      // 渲染月份标题
+      if (itemIndexInsideBlock === 0 && block.monthNode) {
+        visibleContainer.appendChild(block.monthNode.cloneNode(true));
+        currentTimeline = document.createElement('div');
+        currentTimeline.className = 'log-timeline';
+        visibleContainer.appendChild(currentTimeline);
+      }
+
+      // 批量往当前时间线追加 log-item
+      var renderedCount = 0;
+      while (itemIndexInsideBlock < block.items.length && renderedCount < batchSize) {
+        var item = block.items[itemIndexInsideBlock];
+        currentTimeline.appendChild(item.cloneNode(true));
+        itemIndexInsideBlock++;
+        renderedCount++;
+      }
+
+      // 如果当前月份的 item 已经加载完，切换到下一个月份块
+      if (itemIndexInsideBlock >= block.items.length) {
+        blockIndex++;
+        itemIndexInsideBlock = 0;
+      }
+
+      if (blockIndex >= structuralBlocks.length) {
+        if (indicator) indicator.style.display = 'none';
+      }
+    }
+
+    // 初始渲染第一批
+    renderNextBatch();
+    renderNextBatch(); // 渲染两批保证首屏饱满
+
+    // 4. 监听滚动到底部自动加载更多
+    window.addEventListener('scroll', function() {
+      if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500) {
+        renderNextBatch();
+      }
+    });
+  });
+</script>
+{{ end }}

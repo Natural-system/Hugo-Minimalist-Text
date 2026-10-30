@@ -23,7 +23,9 @@
 <script type="application/json" id="category-posts-json">
   [
     {{- $first := true -}}
-    {{- range .Pages -}}
+    {{- /* 只抓取当前分类下属于 posts 目录的文章 */ -}}
+    {{- $catPages := where .Pages "Section" "posts" -}}
+    {{- range $catPages -}}
       {{- if not $first -}},{{- end -}}
       {
         "title": {{- .Title -}},

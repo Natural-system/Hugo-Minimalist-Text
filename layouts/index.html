@@ -8,9 +8,11 @@
 <div class="pagination" id="home-pagination" style="display: none;"></div>
 
 <script>
-  var rawPosts = [
+var rawPosts = [
     {{- $first := true -}}
-    {{- range .Site.RegularPages -}}
+    {{- /* 只抓取 posts 目录下的文章，彻底排除其它所有杂项页面 */ -}}
+    {{- $regularPages := where .Site.RegularPages "Section" "posts" -}}
+    {{- range $regularPages -}}
       {{- if not $first -}},{{- end -}}
       {
         "title": {{- .Title -}},
@@ -20,7 +22,7 @@
       {{- $first = false -}}
     {{- end -}}
   ];
-
+    
   var pageSize = 20;
   var currentPage = 1;
 
