@@ -172,7 +172,7 @@
       {{ block "main" . }}{{ end }}
     </main>
 
-    <!-- 准确统计全站中文字数 -->
+<!-- 准确统计全站中文字数 -->
     {{- $totalWords := 0 -}}
     {{- range .Site.RegularPages -}}
       {{- $chars := len (findRE "." (.Content | plainify)) -}}
@@ -186,6 +186,8 @@
     {{- end -}}
 
     <footer>
+      &copy; {{ now.Format "2006" }} {{ .Site.Title }} · Powered by Hugo & GitHub Pages · 全站共计 {{ len .Site.RegularPages }} 篇，{{ $siteWordText }}
+    </footer>    <footer>
       &copy; {{ now.Format "2006" }} {{ .Site.Title }} · Powered by Hugo & GitHub Pages · 全站共计 {{ len .Site.RegularPages }} 篇，{{ $siteWordText }}
     </footer>
   </div>
