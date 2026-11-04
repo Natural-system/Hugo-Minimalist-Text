@@ -1,0 +1,32 @@
+{{/*
+  为当前页面生成短链跳转页。
+  短码来源优先级：front matter 的 shortlink > 路径哈希。
+  哈希碰撞时 errorf 使构建失败。
+*/}}
+
+{{ $path := .Path }}
+{{ $shortCode := "" }}
+
+{{/* 1. 如果 front matter 手动指定了 shortlink，优先使用 */}}
+{{ with .Params.shortlink }}
+  {{ $shortCode = . }}
+{{ else }}
+  {{/* 2. 基于路径计算 4 位哈希（足够几百到几千篇规模） */}}
+  {{ $hash := hash.XxHash $path }}
+  {{ $shortCode = substr $hash 0 4 }}
+{{ end }}
+
+{{/* 3. 仅在 posts 目录下的文章生成短链，排除 about/archive 等杂项页面 */}}
+{{ if eq .Section "posts" }}
+  {{/* 检查该短码是否已被其他页面占用 */}}
+  {{ $existing := index .Site.Scratch.Get "shortlink_map" | default dict }}
+  {{ $occupied := index $existing $shortCode | default "" }}
+  
+  {{ if and $occupied (ne $occupied $path) }}
+    {{ errorf "短链冲突：短码 %s 已被 %s 占用，当前页面 %s 无法使用。请在 front matter 添加 shortlink: 自定义码 来手动指定。" $shortCode $occupied $path }}
+  {{ end }}
+  
+  {{/* 记录映射 */}}
+  {{ $newMap := merge $existing (dict $shortCode $path) }}
+  {{ .Site.Scratch.Set "shortlink_map" $newMap }}
+{{ end }}

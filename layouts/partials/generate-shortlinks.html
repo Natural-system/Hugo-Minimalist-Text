@@ -1,0 +1,29 @@
+{{ $shortlinkMap := dict }}
+{{ range where .Site.RegularPages "Section" "posts" }}
+  {{ $path := .Path }}
+  {{ $shortCode := "" }}
+  {{ with .Params.shortlink }}
+    {{ $shortCode = . }}
+  {{ else }}
+    {{ $hash := hash.XxHash $path }}
+    {{ $shortCode = substr $hash 0 10 }}
+  {{ end }}
+  {{ $occupiedPath := index $shortlinkMap $shortCode | default "" }}
+  {{ if and $occupiedPath (ne $occupiedPath $path) }}
+    {{ errorf "短链冲突：短码「%s」已被「%s」占用，「%s」无法生成，请在 front matter 加 shortlink" $shortCode $occupiedPath $path }}
+  {{ end }}
+  {{ $shortlinkMap = merge $shortlinkMap (dict $shortCode $path) }}
+  {{ $redirectHTML := printf `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="refresh" content="0; url=%s">
+  <meta name="robots" content="noindex, follow">
+  <title>跳转中...</title>
+</head>
+<body><p>正在跳转到 <a href="%s">原文</a>...</p></body>
+</html>` .RelPermalink .RelPermalink }}
+  {{ $targetPath := printf "s/%s/index.html" $shortCode }}
+  {{ $resource := resources.FromString $targetPath $redirectHTML }}
+  {{ $noop := $resource.RelPermalink }}
+{{ end }}

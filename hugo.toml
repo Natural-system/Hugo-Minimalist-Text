@@ -13,12 +13,11 @@ preserveTaxonomyNames = true
   category = "categories"
   tag = "tags"
 
-# 完美对应原 Jekyll 的 permalink 路径规格
 [permalinks]
-  posts = "/:year/:month/:day/:title/"
-  logs = "/log/:slug/"
+posts = "/p/:slug/"
 
 [markup]
   [markup.goldmark]
     [markup.goldmark.renderer]
       unsafe = true # 允许 Markdown 内嵌入 HTML
+
